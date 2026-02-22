@@ -1,0 +1,32 @@
+{
+  "nodes": [
+    {
+      "id": "input_node",
+      "type": "Input",
+      "label": "테스트 데이터 입력",
+      "nodeCategory": "input"
+    },
+    {
+      "id": "analysis_agent",
+      "type": "Agent",
+      "label": "테스트 결과 분석 에이전트",
+      "nodeCategory": "agent"
+    },
+    {
+      "id": "output_node",
+      "type": "Output",
+      "label": "분석 리포트",
+      "nodeCategory": "end"
+    }
+  ],
+  "edges": [
+    {
+      "source": "input_node",
+      "target": "analysis_agent"
+    },
+    {
+      "source": "analysis_agent",
+      "target": "output_node"
+    }
+  ]
+}

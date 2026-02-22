@@ -1,0 +1,30 @@
+{
+  "agent_name": "\ud14c\uc2a4\ud2b8 \uacb0\uacfc \ubd84\uc11d \uc5d0\uc774\uc804\ud2b8",
+  "agent_id": "699af8fa6bdd139cd6b4f10c",
+  "description": "\uc7a5\uc2dc\uac04 \uc694\uccad/\uc751\ub2f5 \ud14c\uc2a4\ud2b8 \uc644\ub8cc \ud6c4 \uc800\uc7a5 \uc131\uacf5\ub960, \ud3c9\uade0 \uc751\ub2f5\uc2dc\uac04, \uc624\ub958\ud328\ud134 \ub4f1\uc744 \ubd84\uc11d\ud558\uc5ec \ud14c\uc2a4\ud2b8 \ub9ac\ud3ec\ud2b8\ub97c \uc0dd\uc131\ud569\ub2c8\ub2e4",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "summary": "string",
+    "success_rate": "string",
+    "avg_response_time": "string",
+    "min_response_time": "string",
+    "max_response_time": "string",
+    "total_duration": "string",
+    "error_analysis": "string",
+    "evaluation": "string",
+    "recommendations": "string"
+  },
+  "example_response": {
+    "summary": "\ud14c\uc2a4\ud2b8 \uacb0\uacfc \uc694\uc57d (1-2 \ubb38\uc7a5)",
+    "success_rate": "\uc800\uc7a5 \uc131\uacf5\ub960 (\uc608: 98.5%)",
+    "avg_response_time": "\ud3c9\uade0 \uc751\ub2f5\uc2dc\uac04 (\uc608: 120ms)",
+    "min_response_time": "\ucd5c\uc18c \uc751\ub2f5\uc2dc\uac04 (\uc608: 45ms)",
+    "max_response_time": "\ucd5c\ub300 \uc751\ub2f5\uc2dc\uac04 (\uc608: 350ms)",
+    "total_duration": "\uc804\uccb4 \uc18c\uc694\uc2dc\uac04 (\uc608: 2\ubd84 30\ucd08)",
+    "error_analysis": "\uc624\ub958 \ud328\ud134 \ubd84\uc11d \uacb0\uacfc",
+    "evaluation": "\uc885\ud569 \ud3c9\uac00",
+    "recommendations": "\uac1c\uc120 \uad8c\uace0\uc0ac\ud56d"
+  }
+}

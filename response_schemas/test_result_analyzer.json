@@ -1,0 +1,17 @@
+{
+  "agent_name": "테스트 결과 분석 에이전트",
+  "agent_type": "json",
+  "accessor": "json",
+  "has_module_outputs": false,
+  "schema": {
+    "summary": "string",
+    "success_rate": "string",
+    "avg_response_time": "string",
+    "min_response_time": "string",
+    "max_response_time": "string",
+    "total_duration": "string",
+    "error_analysis": "string",
+    "evaluation": "string",
+    "recommendations": "string"
+  }
+}
