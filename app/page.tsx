@@ -36,6 +36,8 @@ import {
   FiLoader,
   FiZap,
   FiServer,
+  FiTrash2,
+  FiDatabase,
 } from 'react-icons/fi'
 
 // --- Constants ---
@@ -324,6 +326,8 @@ function StatusCards({
   failCount,
   avgResponseTime,
   elapsedTime,
+  totalRecords,
+  appState,
 }: {
   targetCount: number
   currentCount: number
@@ -331,12 +335,15 @@ function StatusCards({
   failCount: number
   avgResponseTime: number
   elapsedTime: string
+  totalRecords: number
+  appState: AppState
 }) {
   const progressPercent = targetCount > 0 ? Math.min(100, (currentCount / targetCount) * 100) : 0
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+      {/* Row 1: 목표수, 현재수, 성공건수, 실패건수 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <Card className="border shadow-none">
           <CardContent className="p-3 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">
@@ -356,7 +363,7 @@ function StatusCards({
         <Card className="border shadow-none">
           <CardContent className="p-3 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiCheckCircle className="inline w-3 h-3 mr-1" />성공
+              <FiCheckCircle className="inline w-3 h-3 mr-1" />성공건수
             </div>
             <div className="text-2xl font-semibold" style={{ color: 'hsl(160, 65%, 40%)' }}>{successCount}</div>
           </CardContent>
@@ -364,15 +371,18 @@ function StatusCards({
         <Card className="border shadow-none">
           <CardContent className="p-3 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiXCircle className="inline w-3 h-3 mr-1" />실패
+              <FiXCircle className="inline w-3 h-3 mr-1" />실패건수
             </div>
             <div className="text-2xl font-semibold text-destructive">{failCount}</div>
           </CardContent>
         </Card>
+      </div>
+      {/* Row 2: 평균응답, 동작시간, 전체건수 */}
+      <div className="grid grid-cols-3 gap-2">
         <Card className="border shadow-none">
           <CardContent className="p-3 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiZap className="inline w-3 h-3 mr-1" />평균 응답
+              <FiZap className="inline w-3 h-3 mr-1" />평균응답
             </div>
             <div className="text-2xl font-semibold">{avgResponseTime > 0 ? `${avgResponseTime}ms` : '-'}</div>
           </CardContent>
@@ -380,12 +390,26 @@ function StatusCards({
         <Card className="border shadow-none">
           <CardContent className="p-3 text-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiClock className="inline w-3 h-3 mr-1" />경과시간
+              <FiClock className="inline w-3 h-3 mr-1" />동작시간
             </div>
-            <div className="text-2xl font-semibold">{elapsedTime || '-'}</div>
+            <div className={cn('text-2xl font-semibold', appState === 'running' && 'text-primary')}>
+              {elapsedTime || '00:00'}
+              {appState === 'running' && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary ml-1.5 animate-pulse align-middle" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border shadow-none">
+          <CardContent className="p-3 text-center">
+            <div className="text-xs text-muted-foreground font-medium mb-1">
+              <FiDatabase className="inline w-3 h-3 mr-1" />전체건수
+            </div>
+            <div className="text-2xl font-semibold">{totalRecords}</div>
           </CardContent>
         </Card>
       </div>
+      {/* Row 3: 프로그레스바 */}
       <div className="flex items-center gap-3">
         <Progress value={progressPercent} className="flex-1 h-3" />
         <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
@@ -396,15 +420,45 @@ function StatusCards({
   )
 }
 
-function DataGrid({ records }: { records: DataRecord[] }) {
+function DataGrid({
+  records,
+  totalSavedCount,
+  onClearRecords,
+}: {
+  records: DataRecord[]
+  totalSavedCount: number
+  onClearRecords: () => void
+}) {
+  // Show only the latest 100 records in the grid (reversed for newest first)
+  const displayRecords = records.length > 100
+    ? records.slice(records.length - 100).reverse()
+    : [...records].reverse()
+
   return (
     <Card className="border shadow-none flex-1 flex flex-col min-h-0">
       <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-1">
-          <FiFileText className="w-4 h-4" />
-          데이터 기록
-          <Badge variant="secondary" className="text-xs ml-2">{records.length}건</Badge>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-1">
+            <FiFileText className="w-4 h-4" />
+            데이터 기록
+            <Badge variant="secondary" className="text-xs ml-2">
+              저장 {totalSavedCount}건
+            </Badge>
+            {records.length > 100 && (
+              <span className="text-[10px] text-muted-foreground ml-1">(최근 100건 표시)</span>
+            )}
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onClearRecords}
+            disabled={records.length === 0}
+            className="h-7 text-xs gap-1"
+          >
+            <FiTrash2 className="w-3 h-3" />
+            기록삭제
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-0 flex-1 min-h-0">
         {records.length === 0 ? (
@@ -429,7 +483,7 @@ function DataGrid({ records }: { records: DataRecord[] }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...records].reverse().map((record) => (
+                {displayRecords.map((record) => (
                   <TableRow key={record.id} className="text-xs">
                     <TableCell className="py-1.5 px-4 font-mono text-muted-foreground">{record.id}</TableCell>
                     <TableCell className="py-1.5 px-4">{record.date}</TableCell>
@@ -472,18 +526,6 @@ function AnalysisReportSection({
   canAnalyze: boolean
   onAnalyze: () => void
 }) {
-  const reportFields: { key: keyof AnalysisResult; label: string; icon: React.ReactNode }[] = [
-    { key: 'summary', label: '테스트 결과 요약', icon: <FiFileText className="w-4 h-4" /> },
-    { key: 'success_rate', label: '저장 성공률', icon: <FiCheckCircle className="w-4 h-4" /> },
-    { key: 'avg_response_time', label: '평균 응답시간', icon: <FiClock className="w-4 h-4" /> },
-    { key: 'min_response_time', label: '최소 응답시간', icon: <FiZap className="w-4 h-4" /> },
-    { key: 'max_response_time', label: '최대 응답시간', icon: <FiAlertTriangle className="w-4 h-4" /> },
-    { key: 'total_duration', label: '전체 소요시간', icon: <FiClock className="w-4 h-4" /> },
-    { key: 'error_analysis', label: '오류 패턴 분석', icon: <FiXCircle className="w-4 h-4" /> },
-    { key: 'evaluation', label: '종합 평가', icon: <FiBarChart2 className="w-4 h-4" /> },
-    { key: 'recommendations', label: '개선 권고사항', icon: <FiTrendingUp className="w-4 h-4" /> },
-  ]
-
   return (
     <Card className="border shadow-none">
       <CardHeader className="p-3 pb-2">
@@ -534,42 +576,100 @@ function AnalysisReportSection({
           </div>
         )}
         {analysis && !analysisLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {reportFields.map((field) => {
-              const value = analysis?.[field.key] ?? ''
-              const isLongText = typeof value === 'string' && (value.length > 100 || value.includes('\n'))
-              const isMetric = ['success_rate', 'avg_response_time', 'min_response_time', 'max_response_time', 'total_duration'].includes(field.key)
-
-              if (isLongText) {
-                return (
-                  <Card key={field.key} className="border shadow-none col-span-1 md:col-span-2 lg:col-span-3">
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
-                        {field.icon}
-                        <span className="text-xs font-medium">{field.label}</span>
-                      </div>
-                      <div className="text-sm">{renderMarkdown(value)}</div>
-                    </CardContent>
-                  </Card>
-                )
-              }
-
-              return (
-                <Card key={field.key} className="border shadow-none">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-                      {field.icon}
-                      <span className="text-xs font-medium">{field.label}</span>
-                    </div>
-                    {isMetric ? (
-                      <div className="text-lg font-semibold">{value || '-'}</div>
-                    ) : (
-                      <div className="text-sm">{value ? renderMarkdown(value) : <span className="text-muted-foreground">-</span>}</div>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+          <div className="space-y-2">
+            {/* Row 1: 테스트 결과 요약, 저장성공률 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
+                    <FiFileText className="w-4 h-4" />
+                    <span className="text-xs font-medium">테스트 결과 요약</span>
+                  </div>
+                  <div className="text-sm">{analysis.summary ? renderMarkdown(analysis.summary) : <span className="text-muted-foreground">-</span>}</div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+                    <FiCheckCircle className="w-4 h-4" />
+                    <span className="text-xs font-medium">저장 성공률</span>
+                  </div>
+                  <div className="text-lg font-semibold">{analysis.success_rate || '-'}</div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Row 2: 평균응답시간, 전체소요시간 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+                    <FiClock className="w-4 h-4" />
+                    <span className="text-xs font-medium">평균 응답시간</span>
+                  </div>
+                  <div className="text-lg font-semibold">{analysis.avg_response_time || '-'}</div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+                    <FiClock className="w-4 h-4" />
+                    <span className="text-xs font-medium">전체 소요시간</span>
+                  </div>
+                  <div className="text-lg font-semibold">{analysis.total_duration || '-'}</div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Row 3: 최소응답시간, 최대응답시간 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+                    <FiZap className="w-4 h-4" />
+                    <span className="text-xs font-medium">최소 응답시간</span>
+                  </div>
+                  <div className="text-lg font-semibold">{analysis.min_response_time || '-'}</div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-none">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+                    <FiAlertTriangle className="w-4 h-4" />
+                    <span className="text-xs font-medium">최대 응답시간</span>
+                  </div>
+                  <div className="text-lg font-semibold">{analysis.max_response_time || '-'}</div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Row 4: 오류 패턴 분석 (full width) */}
+            <Card className="border shadow-none">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
+                  <FiXCircle className="w-4 h-4" />
+                  <span className="text-xs font-medium">오류 패턴 분석</span>
+                </div>
+                <div className="text-sm">{analysis.error_analysis ? renderMarkdown(analysis.error_analysis) : <span className="text-muted-foreground">-</span>}</div>
+              </CardContent>
+            </Card>
+            {/* Row 5: 종합 평가 (full width) */}
+            <Card className="border shadow-none">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
+                  <FiBarChart2 className="w-4 h-4" />
+                  <span className="text-xs font-medium">종합 평가</span>
+                </div>
+                <div className="text-sm">{analysis.evaluation ? renderMarkdown(analysis.evaluation) : <span className="text-muted-foreground">-</span>}</div>
+              </CardContent>
+            </Card>
+            {/* Row 6: 개선 권고사항 (full width) */}
+            <Card className="border shadow-none">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
+                  <FiTrendingUp className="w-4 h-4" />
+                  <span className="text-xs font-medium">개선 권고사항</span>
+                </div>
+                <div className="text-sm">{analysis.recommendations ? renderMarkdown(analysis.recommendations) : <span className="text-muted-foreground">-</span>}</div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </CardContent>
@@ -762,6 +862,20 @@ export default function Page() {
     }
   }, [])
 
+  const handleClearRecords = useCallback(() => {
+    setRecords([])
+    setCurrentCount(0)
+    setSuccessCount(0)
+    setFailCount(0)
+    setTestCompleted(false)
+    setAnalysis(null)
+    setAnalysisError('')
+    setElapsedTime('')
+    idCounterRef.current = 0
+    dailySequenceRef.current = {}
+    currentCountRef.current = 0
+  }, [])
+
   const handleAnalyze = useCallback(async () => {
     const dataRecords = showSample ? sampleRecords : records
     if (dataRecords.length === 0) return
@@ -884,10 +998,16 @@ ${dataRecords.filter((r) => !r.success).map((r) => `- ID ${r.id}: ${r.targetWord
             failCount={displayFailCount}
             avgResponseTime={computeAvgResponseTime()}
             elapsedTime={showSample ? '00:30' : elapsedTime}
+            totalRecords={showSample ? sampleRecords.length : records.length}
+            appState={appState}
           />
 
           {/* Data Grid */}
-          <DataGrid records={displayRecords} />
+          <DataGrid
+            records={displayRecords}
+            totalSavedCount={showSample ? sampleRecords.length : records.length}
+            onClearRecords={handleClearRecords}
+          />
 
           {/* Analysis Report */}
           <AnalysisReportSection
