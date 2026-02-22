@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table'
 import {
   FiPlay,
+  FiPause,
   FiSquare,
   FiActivity,
   FiBarChart2,
@@ -66,7 +67,7 @@ interface AnalysisResult {
   recommendations?: string
 }
 
-type AppState = 'idle' | 'running'
+type AppState = 'idle' | 'running' | 'paused'
 
 // --- Sample Data ---
 function generateSampleData(): DataRecord[] {
@@ -220,6 +221,8 @@ function HeaderToolbar({
   appState,
   onStart,
   onStop,
+  onPause,
+  onResume,
 }: {
   targetWord: string
   setTargetWord: (v: string) => void
@@ -230,7 +233,11 @@ function HeaderToolbar({
   appState: AppState
   onStart: () => void
   onStop: () => void
+  onPause: () => void
+  onResume: () => void
 }) {
+  const isInputDisabled = appState === 'running' || appState === 'paused'
+
   return (
     <Card className="border shadow-none">
       <CardContent className="p-3">
@@ -245,7 +252,7 @@ function HeaderToolbar({
               placeholder="검색어 입력"
               value={targetWord}
               onChange={(e) => setTargetWord(e.target.value)}
-              disabled={appState === 'running'}
+              disabled={isInputDisabled}
               className="h-8 text-sm"
             />
           </div>
@@ -260,7 +267,7 @@ function HeaderToolbar({
               min={1}
               value={targetCount}
               onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
-              disabled={appState === 'running'}
+              disabled={isInputDisabled}
               className="h-8 text-sm"
             />
           </div>
@@ -275,7 +282,7 @@ function HeaderToolbar({
               min={1}
               value={saveInterval}
               onChange={(e) => setSaveInterval(Math.max(1, parseInt(e.target.value) || 1))}
-              disabled={appState === 'running'}
+              disabled={isInputDisabled}
               className="h-8 text-sm"
             />
           </div>
@@ -283,12 +290,34 @@ function HeaderToolbar({
             <Button
               size="sm"
               onClick={onStart}
-              disabled={appState === 'running' || !targetWord.trim()}
+              disabled={appState !== 'idle' || !targetWord.trim()}
               className="h-8 gap-1 text-xs"
             >
               <FiPlay className="w-3 h-3" />
               시작
             </Button>
+            {appState === 'running' && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={onPause}
+                className="h-8 gap-1 text-xs"
+              >
+                <FiPause className="w-3 h-3" />
+                일시중지
+              </Button>
+            )}
+            {appState === 'paused' && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={onResume}
+                className="h-8 gap-1 text-xs"
+              >
+                <FiPlay className="w-3 h-3" />
+                재개
+              </Button>
+            )}
             <Button
               size="sm"
               variant="destructive"
@@ -300,13 +329,22 @@ function HeaderToolbar({
               종료
             </Button>
             <Badge
-              variant={appState === 'running' ? 'default' : 'secondary'}
-              className={cn('text-xs', appState === 'running' && 'animate-pulse')}
+              variant={appState === 'idle' ? 'secondary' : 'default'}
+              className={cn(
+                'text-xs',
+                appState === 'running' && 'animate-pulse',
+                appState === 'paused' && 'bg-amber-500 text-white'
+              )}
             >
               {appState === 'running' ? (
                 <>
                   <FiActivity className="w-3 h-3 mr-1" />
                   동작
+                </>
+              ) : appState === 'paused' ? (
+                <>
+                  <FiPause className="w-3 h-3 mr-1" />
+                  일시중지
                 </>
               ) : (
                 '대기'
@@ -713,7 +751,6 @@ export default function Page() {
   const [currentCount, setCurrentCount] = useState(0)
   const [successCount, setSuccessCount] = useState(0)
   const [failCount, setFailCount] = useState(0)
-  const [startTime, setStartTime] = useState<number | null>(null)
   const [elapsedTime, setElapsedTime] = useState('')
   const [testCompleted, setTestCompleted] = useState(false)
 
@@ -734,6 +771,10 @@ export default function Page() {
   const dailySequenceRef = useRef<{ [date: string]: number }>({})
   const currentCountRef = useRef(0)
   const targetCountRef = useRef(10)
+  // Track elapsed time across pause/resume cycles
+  const elapsedSecondsRef = useRef(0)
+  const timerStartRef = useRef<number | null>(null)
+  const saveIntervalRef = useRef(3)
 
   // Computed values for display
   const displayRecords = showSample ? sampleRecords : records
@@ -750,15 +791,27 @@ export default function Page() {
     return Math.round(total / recs.length)
   }, [showSample, sampleRecords, records])
 
-  // Elapsed time timer
+  // Elapsed time timer - supports pause/resume
   useEffect(() => {
-    if (appState === 'running' && startTime) {
+    if (appState === 'running') {
+      timerStartRef.current = Date.now()
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000)
-        const mins = Math.floor(elapsed / 60)
-        const secs = elapsed % 60
+        const additionalSeconds = Math.floor((Date.now() - (timerStartRef.current ?? Date.now())) / 1000)
+        const totalSeconds = elapsedSecondsRef.current + additionalSeconds
+        const mins = Math.floor(totalSeconds / 60)
+        const secs = totalSeconds % 60
         setElapsedTime(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
       }, 1000)
+    } else if (appState === 'paused') {
+      // Accumulate elapsed seconds when pausing
+      if (timerStartRef.current) {
+        elapsedSecondsRef.current += Math.floor((Date.now() - timerStartRef.current) / 1000)
+        timerStartRef.current = null
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
     }
     return () => {
       if (timerRef.current) {
@@ -766,7 +819,7 @@ export default function Page() {
         timerRef.current = null
       }
     }
-  }, [appState, startTime])
+  }, [appState])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -774,6 +827,69 @@ export default function Page() {
       if (intervalRef.current) clearInterval(intervalRef.current)
       if (timerRef.current) clearInterval(timerRef.current)
     }
+  }, [])
+
+  // Shared function to create the save interval
+  const startSaveInterval = useCallback((word: string) => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+
+    intervalRef.current = setInterval(() => {
+      if (currentCountRef.current >= targetCountRef.current) {
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        intervalRef.current = null
+        // Accumulate final elapsed seconds
+        if (timerStartRef.current) {
+          elapsedSecondsRef.current += Math.floor((Date.now() - timerStartRef.current) / 1000)
+          timerStartRef.current = null
+        }
+        setAppState('idle')
+        setTestCompleted(true)
+        return
+      }
+
+      const timestamp = new Date()
+      const dateStr = formatDate(timestamp)
+      idCounterRef.current += 1
+
+      if (!dailySequenceRef.current[dateStr]) {
+        dailySequenceRef.current[dateStr] = 0
+      }
+      dailySequenceRef.current[dateStr] += 1
+
+      const responseTime = Math.floor(50 + Math.random() * 450)
+      const success = Math.random() > 0.05
+
+      const record: DataRecord = {
+        id: idCounterRef.current,
+        date: dateStr,
+        sequence: dailySequenceRef.current[dateStr],
+        targetWord: `${word}${idCounterRef.current}`,
+        savedAt: formatTimestamp(timestamp),
+        responseTime,
+        success,
+      }
+
+      setRecords((prev) => [...prev, record])
+      currentCountRef.current += 1
+      setCurrentCount(currentCountRef.current)
+
+      if (success) {
+        setSuccessCount((prev) => prev + 1)
+      } else {
+        setFailCount((prev) => prev + 1)
+      }
+
+      if (currentCountRef.current >= targetCountRef.current) {
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        intervalRef.current = null
+        if (timerStartRef.current) {
+          elapsedSecondsRef.current += Math.floor((Date.now() - timerStartRef.current) / 1000)
+          timerStartRef.current = null
+        }
+        setAppState('idle')
+        setTestCompleted(true)
+      }
+    }, saveIntervalRef.current * 1000)
   }, [])
 
   const handleStart = useCallback(() => {
@@ -792,69 +908,36 @@ export default function Page() {
     dailySequenceRef.current = {}
     currentCountRef.current = 0
     targetCountRef.current = targetCount
+    elapsedSecondsRef.current = 0
+    saveIntervalRef.current = saveInterval
 
-    const now = Date.now()
-    setStartTime(now)
     setAppState('running')
+    startSaveInterval(targetWord)
+  }, [targetWord, targetCount, saveInterval, startSaveInterval])
 
-    // Create the save interval
-    intervalRef.current = setInterval(() => {
-      if (currentCountRef.current >= targetCountRef.current) {
-        // Target reached - stop
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        intervalRef.current = null
-        setAppState('idle')
-        setTestCompleted(true)
-        return
-      }
+  const handlePause = useCallback(() => {
+    // Stop the save interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    setAppState('paused')
+  }, [])
 
-      const timestamp = new Date()
-      const dateStr = formatDate(timestamp)
-      idCounterRef.current += 1
-
-      // Compute daily sequence
-      if (!dailySequenceRef.current[dateStr]) {
-        dailySequenceRef.current[dateStr] = 0
-      }
-      dailySequenceRef.current[dateStr] += 1
-
-      const responseTime = Math.floor(50 + Math.random() * 450)
-      const success = Math.random() > 0.05
-
-      const record: DataRecord = {
-        id: idCounterRef.current,
-        date: dateStr,
-        sequence: dailySequenceRef.current[dateStr],
-        targetWord: `${targetWord}${idCounterRef.current}`,
-        savedAt: formatTimestamp(timestamp),
-        responseTime,
-        success,
-      }
-
-      setRecords((prev) => [...prev, record])
-      currentCountRef.current += 1
-      setCurrentCount(currentCountRef.current)
-
-      if (success) {
-        setSuccessCount((prev) => prev + 1)
-      } else {
-        setFailCount((prev) => prev + 1)
-      }
-
-      // Check if target reached after this save
-      if (currentCountRef.current >= targetCountRef.current) {
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        intervalRef.current = null
-        setAppState('idle')
-        setTestCompleted(true)
-      }
-    }, saveInterval * 1000)
-  }, [targetWord, targetCount, saveInterval])
+  const handleResume = useCallback(() => {
+    setAppState('running')
+    startSaveInterval(targetWord)
+  }, [targetWord, startSaveInterval])
 
   const handleStop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
+    }
+    // Accumulate final elapsed seconds
+    if (timerStartRef.current) {
+      elapsedSecondsRef.current += Math.floor((Date.now() - timerStartRef.current) / 1000)
+      timerStartRef.current = null
     }
     setAppState('idle')
     if (currentCountRef.current > 0) {
@@ -874,6 +957,7 @@ export default function Page() {
     idCounterRef.current = 0
     dailySequenceRef.current = {}
     currentCountRef.current = 0
+    elapsedSecondsRef.current = 0
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -969,7 +1053,7 @@ ${dataRecords.filter((r) => !r.success).map((r) => `- ID ${r.id}: ${r.targetWord
                     setTestCompleted(true)
                   }
                 }}
-                disabled={appState === 'running'}
+                disabled={appState !== 'idle'}
               />
             </div>
           </div>
@@ -988,6 +1072,8 @@ ${dataRecords.filter((r) => !r.success).map((r) => `- ID ${r.id}: ${r.targetWord
             appState={appState}
             onStart={handleStart}
             onStop={handleStop}
+            onPause={handlePause}
+            onResume={handleResume}
           />
 
           {/* Status Cards */}
