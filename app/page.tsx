@@ -4,8 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { callAIAgent } from '@/lib/aiAgent'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
@@ -39,7 +38,16 @@ import {
   FiServer,
   FiTrash2,
   FiDatabase,
+  FiGrid,
 } from 'react-icons/fi'
+import {
+  MetricCard,
+  SectionCard,
+  StatusBadge,
+  InlineMessage,
+  MarkdownContent,
+} from '@/components/shared'
+import { ComponentDemo } from '@/components/shared/ComponentDemo'
 
 // --- Constants ---
 const AGENT_ID = '699af8fa6bdd139cd6b4f10c'
@@ -116,65 +124,7 @@ function formatTimestamp(d: Date): string {
   return `${date} ${h}:${min}:${s}`
 }
 
-function renderMarkdown(text: string) {
-  if (!text) return null
-  return (
-    <div className="space-y-1">
-      {text.split('\n').map((line, i) => {
-        if (line.startsWith('### '))
-          return (
-            <h4 key={i} className="font-semibold text-sm mt-2 mb-1">
-              {line.slice(4)}
-            </h4>
-          )
-        if (line.startsWith('## '))
-          return (
-            <h3 key={i} className="font-semibold text-base mt-2 mb-1">
-              {line.slice(3)}
-            </h3>
-          )
-        if (line.startsWith('# '))
-          return (
-            <h2 key={i} className="font-bold text-lg mt-3 mb-1">
-              {line.slice(2)}
-            </h2>
-          )
-        if (line.startsWith('- ') || line.startsWith('* '))
-          return (
-            <li key={i} className="ml-4 list-disc text-sm">
-              {formatInline(line.slice(2))}
-            </li>
-          )
-        if (/^\d+\.\s/.test(line))
-          return (
-            <li key={i} className="ml-4 list-decimal text-sm">
-              {formatInline(line.replace(/^\d+\.\s/, ''))}
-            </li>
-          )
-        if (!line.trim()) return <div key={i} className="h-1" />
-        return (
-          <p key={i} className="text-sm">
-            {formatInline(line)}
-          </p>
-        )
-      })}
-    </div>
-  )
-}
-
-function formatInline(text: string) {
-  const parts = text.split(/\*\*(.*?)\*\*/g)
-  if (parts.length === 1) return text
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold">
-        {part}
-      </strong>
-    ) : (
-      part
-    )
-  )
-}
+// renderMarkdown and formatInline moved to @/components/shared/MarkdownContent
 
 // --- ErrorBoundary ---
 class ErrorBoundary extends React.Component<
@@ -328,28 +278,21 @@ function HeaderToolbar({
               <FiSquare className="w-3 h-3" />
               종료
             </Button>
-            <Badge
-              variant={appState === 'idle' ? 'secondary' : 'default'}
-              className={cn(
-                'text-xs',
-                appState === 'running' && 'animate-pulse',
-                appState === 'paused' && 'bg-amber-500 text-white'
-              )}
-            >
-              {appState === 'running' ? (
-                <>
-                  <FiActivity className="w-3 h-3 mr-1" />
-                  동작
-                </>
-              ) : appState === 'paused' ? (
-                <>
-                  <FiPause className="w-3 h-3 mr-1" />
-                  일시중지
-                </>
-              ) : (
-                '대기'
-              )}
-            </Badge>
+            {appState === 'running' ? (
+              <StatusBadge
+                variant="active"
+                icon={<FiActivity className="w-3 h-3" />}
+                label="동작"
+              />
+            ) : appState === 'paused' ? (
+              <StatusBadge
+                variant="warning"
+                icon={<FiPause className="w-3 h-3" />}
+                label="일시중지"
+              />
+            ) : (
+              <StatusBadge variant="idle" label="대기" />
+            )}
           </div>
         </div>
       </CardContent>
@@ -382,70 +325,54 @@ function StatusCards({
     <div className="space-y-2">
       {/* Row 1: 목표수, 현재수, 성공건수, 실패건수 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiTarget className="inline w-3 h-3 mr-1" />목표수
-            </div>
-            <div className="text-2xl font-semibold">{targetCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiTrendingUp className="inline w-3 h-3 mr-1" />현재수
-            </div>
-            <div className="text-2xl font-semibold text-primary">{currentCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiCheckCircle className="inline w-3 h-3 mr-1" />성공건수
-            </div>
-            <div className="text-2xl font-semibold" style={{ color: 'hsl(160, 65%, 40%)' }}>{successCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiXCircle className="inline w-3 h-3 mr-1" />실패건수
-            </div>
-            <div className="text-2xl font-semibold text-destructive">{failCount}</div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          icon={<FiTarget className="w-3 h-3" />}
+          label="목표수"
+          value={targetCount}
+        />
+        <MetricCard
+          icon={<FiTrendingUp className="w-3 h-3" />}
+          label="현재수"
+          value={currentCount}
+          valueClassName="text-primary"
+        />
+        <MetricCard
+          icon={<FiCheckCircle className="w-3 h-3" />}
+          label="성공건수"
+          value={<span style={{ color: 'hsl(160, 65%, 40%)' }}>{successCount}</span>}
+        />
+        <MetricCard
+          icon={<FiXCircle className="w-3 h-3" />}
+          label="실패건수"
+          value={failCount}
+          valueClassName="text-destructive"
+        />
       </div>
       {/* Row 2: 평균응답, 동작시간, 전체건수 */}
       <div className="grid grid-cols-3 gap-2">
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiZap className="inline w-3 h-3 mr-1" />평균응답
-            </div>
-            <div className="text-2xl font-semibold">{avgResponseTime > 0 ? `${avgResponseTime}ms` : '-'}</div>
-          </CardContent>
-        </Card>
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiClock className="inline w-3 h-3 mr-1" />동작시간
-            </div>
-            <div className={cn('text-2xl font-semibold', appState === 'running' && 'text-primary')}>
+        <MetricCard
+          icon={<FiZap className="w-3 h-3" />}
+          label="평균응답"
+          value={avgResponseTime > 0 ? `${avgResponseTime}ms` : '-'}
+        />
+        <MetricCard
+          icon={<FiClock className="w-3 h-3" />}
+          label="동작시간"
+          value={
+            <>
               {elapsedTime || '00:00'}
               {appState === 'running' && (
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary ml-1.5 animate-pulse align-middle" />
               )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border shadow-none">
-          <CardContent className="p-3 text-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              <FiDatabase className="inline w-3 h-3 mr-1" />전체건수
-            </div>
-            <div className="text-2xl font-semibold">{totalRecords}</div>
-          </CardContent>
-        </Card>
+            </>
+          }
+          valueClassName={cn(appState === 'running' && 'text-primary')}
+        />
+        <MetricCard
+          icon={<FiDatabase className="w-3 h-3" />}
+          label="전체건수"
+          value={totalRecords}
+        />
       </div>
       {/* Row 3: 프로그레스바 */}
       <div className="flex items-center gap-3">
@@ -473,39 +400,39 @@ function DataGrid({
     : [...records].reverse()
 
   return (
-    <Card className="border shadow-none flex-1 flex flex-col min-h-0">
-      <CardHeader className="p-3 pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-1">
-            <FiFileText className="w-4 h-4" />
-            데이터 기록
-            <Badge variant="secondary" className="text-xs ml-2">
-              저장 {totalSavedCount}건
-            </Badge>
-            {records.length > 100 && (
-              <span className="text-[10px] text-muted-foreground ml-1">(최근 100건 표시)</span>
-            )}
-          </CardTitle>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={onClearRecords}
-            disabled={records.length === 0}
-            className="h-7 text-xs gap-1"
-          >
-            <FiTrash2 className="w-3 h-3" />
-            기록삭제
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 min-h-0">
+    <SectionCard
+      icon={<FiFileText className="w-4 h-4" />}
+      title="데이터 기록"
+      titleExtra={
+        <>
+          <StatusBadge variant="idle" label={`저장 ${totalSavedCount}건`} size="sm" className="ml-2" />
+          {records.length > 100 && (
+            <span className="text-[10px] text-muted-foreground ml-1">(최근 100건 표시)</span>
+          )}
+        </>
+      }
+      action={
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={onClearRecords}
+          disabled={records.length === 0}
+          className="h-7 text-xs gap-1"
+        >
+          <FiTrash2 className="w-3 h-3" />
+          기록삭제
+        </Button>
+      }
+      className="flex-1 flex flex-col min-h-0"
+      noPadding
+    >
         {records.length === 0 ? (
-          <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-            <div className="text-center">
-              <FiFileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p>데이터가 없습니다. 테스트를 시작하세요.</p>
-            </div>
-          </div>
+          <InlineMessage
+            variant="empty"
+            icon={<FiFileText className="w-8 h-8" />}
+            title="데이터가 없습니다. 테스트를 시작하세요."
+            className="h-[200px] flex items-center justify-center"
+          />
         ) : (
           <ScrollArea className="h-[360px]">
             <Table>
@@ -531,13 +458,21 @@ function DataGrid({
                     <TableCell className="py-1.5 px-4 font-mono">{record.responseTime}ms</TableCell>
                     <TableCell className="py-1.5 px-4">
                       {record.success ? (
-                        <Badge variant="default" className="text-[10px] px-1.5 py-0" style={{ backgroundColor: 'hsl(160, 65%, 40%)' }}>
-                          <FiCheckCircle className="w-2.5 h-2.5 mr-0.5" />OK
-                        </Badge>
+                        <StatusBadge
+                          variant="success"
+                          icon={<FiCheckCircle className="w-2.5 h-2.5" />}
+                          label="OK"
+                          size="sm"
+                          className=""
+                          style={{ backgroundColor: 'hsl(160, 65%, 40%)' }}
+                        />
                       ) : (
-                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                          <FiXCircle className="w-2.5 h-2.5 mr-0.5" />FAIL
-                        </Badge>
+                        <StatusBadge
+                          variant="error"
+                          icon={<FiXCircle className="w-2.5 h-2.5" />}
+                          label="FAIL"
+                          size="sm"
+                        />
                       )}
                     </TableCell>
                   </TableRow>
@@ -546,8 +481,7 @@ function DataGrid({
             </Table>
           </ScrollArea>
         )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -565,53 +499,53 @@ function AnalysisReportSection({
   onAnalyze: () => void
 }) {
   return (
-    <Card className="border shadow-none">
-      <CardHeader className="p-3 pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-1">
-            <FiBarChart2 className="w-4 h-4" />
-            결과 분석 리포트
-          </CardTitle>
-          <Button
-            size="sm"
-            onClick={onAnalyze}
-            disabled={!canAnalyze || analysisLoading}
-            className="h-7 text-xs gap-1"
-          >
-            {analysisLoading ? (
-              <>
-                <FiLoader className="w-3 h-3 animate-spin" />
-                분석 중...
-              </>
-            ) : (
-              <>
-                <FiBarChart2 className="w-3 h-3" />
-                결과 분석
-              </>
-            )}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-3 pt-0">
+    <SectionCard
+      icon={<FiBarChart2 className="w-4 h-4" />}
+      title="결과 분석 리포트"
+      action={
+        <Button
+          size="sm"
+          onClick={onAnalyze}
+          disabled={!canAnalyze || analysisLoading}
+          className="h-7 text-xs gap-1"
+        >
+          {analysisLoading ? (
+            <>
+              <FiLoader className="w-3 h-3 animate-spin" />
+              분석 중...
+            </>
+          ) : (
+            <>
+              <FiBarChart2 className="w-3 h-3" />
+              결과 분석
+            </>
+          )}
+        </Button>
+      }
+    >
         {analysisError && (
-          <div className="p-2 mb-2 border border-destructive/30 bg-destructive/5 rounded text-sm text-destructive">
-            <FiAlertTriangle className="inline w-3 h-3 mr-1" />
-            {analysisError}
-          </div>
+          <InlineMessage
+            variant="error"
+            icon={<FiAlertTriangle className="w-3 h-3" />}
+            title={analysisError}
+            className="mb-2"
+          />
         )}
         {!analysis && !analysisLoading && !analysisError && (
-          <div className="text-center py-6 text-muted-foreground text-sm">
-            <FiBarChart2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p>테스트 완료 후 &quot;결과 분석&quot; 버튼을 클릭하세요.</p>
-            <p className="text-xs mt-1">AI 에이전트가 테스트 데이터를 분석합니다.</p>
-          </div>
+          <InlineMessage
+            variant="empty"
+            icon={<FiBarChart2 className="w-8 h-8" />}
+            title={'테스트 완료 후 "결과 분석" 버튼을 클릭하세요.'}
+            description="AI 에이전트가 테스트 데이터를 분석합니다."
+          />
         )}
         {analysisLoading && (
-          <div className="text-center py-8">
-            <FiLoader className="w-8 h-8 mx-auto mb-2 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">AI 에이전트가 테스트 결과를 분석하고 있습니다...</p>
-            <p className="text-xs text-muted-foreground mt-1">잠시만 기다려주세요.</p>
-          </div>
+          <InlineMessage
+            variant="loading"
+            icon={<FiLoader className="w-8 h-8 animate-spin text-primary" />}
+            title="AI 에이전트가 테스트 결과를 분석하고 있습니다..."
+            description="잠시만 기다려주세요."
+          />
         )}
         {analysis && !analysisLoading && (
           <div className="space-y-2">
@@ -623,7 +557,9 @@ function AnalysisReportSection({
                     <FiFileText className="w-4 h-4" />
                     <span className="text-xs font-medium">테스트 결과 요약</span>
                   </div>
-                  <div className="text-sm">{analysis.summary ? renderMarkdown(analysis.summary) : <span className="text-muted-foreground">-</span>}</div>
+                  <div className="text-sm">
+                    <MarkdownContent text={analysis.summary} fallback={<span className="text-muted-foreground">-</span>} />
+                  </div>
                 </CardContent>
               </Card>
               <Card className="border shadow-none">
@@ -685,7 +621,9 @@ function AnalysisReportSection({
                   <FiXCircle className="w-4 h-4" />
                   <span className="text-xs font-medium">오류 패턴 분석</span>
                 </div>
-                <div className="text-sm">{analysis.error_analysis ? renderMarkdown(analysis.error_analysis) : <span className="text-muted-foreground">-</span>}</div>
+                <div className="text-sm">
+                  <MarkdownContent text={analysis.error_analysis} fallback={<span className="text-muted-foreground">-</span>} />
+                </div>
               </CardContent>
             </Card>
             {/* Row 5: 종합 평가 (full width) */}
@@ -695,7 +633,9 @@ function AnalysisReportSection({
                   <FiBarChart2 className="w-4 h-4" />
                   <span className="text-xs font-medium">종합 평가</span>
                 </div>
-                <div className="text-sm">{analysis.evaluation ? renderMarkdown(analysis.evaluation) : <span className="text-muted-foreground">-</span>}</div>
+                <div className="text-sm">
+                  <MarkdownContent text={analysis.evaluation} fallback={<span className="text-muted-foreground">-</span>} />
+                </div>
               </CardContent>
             </Card>
             {/* Row 6: 개선 권고사항 (full width) */}
@@ -705,13 +645,14 @@ function AnalysisReportSection({
                   <FiTrendingUp className="w-4 h-4" />
                   <span className="text-xs font-medium">개선 권고사항</span>
                 </div>
-                <div className="text-sm">{analysis.recommendations ? renderMarkdown(analysis.recommendations) : <span className="text-muted-foreground">-</span>}</div>
+                <div className="text-sm">
+                  <MarkdownContent text={analysis.recommendations} fallback={<span className="text-muted-foreground">-</span>} />
+                </div>
               </CardContent>
             </Card>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -726,11 +667,15 @@ function AgentInfoSection({ activeAgentId }: { activeAgentId: string | null }) {
           <span className="text-xs font-mono text-muted-foreground">{AGENT_ID.slice(0, 8)}...</span>
           <span className="text-xs text-muted-foreground">테스트 결과 분석 에이전트</span>
           {activeAgentId ? (
-            <Badge variant="default" className="text-[10px] px-1.5 py-0 animate-pulse ml-auto">
-              <FiActivity className="w-2.5 h-2.5 mr-0.5" />활성
-            </Badge>
+            <StatusBadge
+              variant="active"
+              icon={<FiActivity className="w-2.5 h-2.5" />}
+              label="활성"
+              size="sm"
+              className="ml-auto"
+            />
           ) : (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-auto">대기</Badge>
+            <StatusBadge variant="idle" label="대기" size="sm" className="ml-auto" />
           )}
         </div>
       </CardContent>
@@ -763,6 +708,9 @@ export default function Page() {
   // Sample data
   const [showSample, setShowSample] = useState(false)
   const [sampleRecords] = useState<DataRecord[]>(() => generateSampleData())
+
+  // Component demo
+  const [showComponentDemo, setShowComponentDemo] = useState(false)
 
   // Refs for interval management
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -1042,7 +990,17 @@ ${dataRecords.filter((r) => !r.success).map((r) => `- ID ${r.id}: ${r.targetWord
               <FiActivity className="w-5 h-5 text-primary" />
               <h1 className="text-base font-semibold">장기 요청/응답 테스트 모니터링</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowComponentDemo(true)}
+                className="h-7 text-xs gap-1"
+              >
+                <FiGrid className="w-3 h-3" />
+                Components
+              </Button>
+              <Separator orientation="vertical" className="h-4" />
               <Label htmlFor="sample-toggle" className="text-xs text-muted-foreground">Sample Data</Label>
               <Switch
                 id="sample-toggle"
@@ -1107,6 +1065,11 @@ ${dataRecords.filter((r) => !r.success).map((r) => `- ID ${r.id}: ${r.targetWord
           {/* Agent Info */}
           <AgentInfoSection activeAgentId={activeAgentId} />
         </div>
+
+        {/* Component Demo Modal */}
+        {showComponentDemo && (
+          <ComponentDemo onClose={() => setShowComponentDemo(false)} />
+        )}
       </div>
     </ErrorBoundary>
   )
